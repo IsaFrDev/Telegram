@@ -13,6 +13,11 @@ const PORT = process.env.PORT || 3000;
 // Serve static files
 app.use(express.static(__dirname));
 
+// Explicit route for index.html (important for Vercel)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Users and Messages (simplified for this demo)
 let users = [];
 try {
