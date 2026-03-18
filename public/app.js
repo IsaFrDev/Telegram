@@ -4,7 +4,9 @@
  * ─────────────────────────────────────────────
  */
 
-const socket = io();
+const socket = io({
+  transports: ['websocket']
+});
 let unreads = {}; // username -> count
 let recentConvs = []; // list of usernames
 let contextMsg = null; // message currently being right-clicked
