@@ -238,9 +238,9 @@ export default function ChatArea({ selectedUser, currentUser, onBack }) {
           />
         ) : (
           <div className="recording-overlay">
-            <div className="recording-dot"></div>
-            <span>{Math.floor(recSeconds/60)}:{String(recSeconds%60).padStart(2,'0')}</span>
-            <div className="recording-cancel">Recording...</div>
+            <div id="recording-dot" className="recording-dot"></div>
+            <span id="recording-timer">{Math.floor(recSeconds/60)}:{String(recSeconds%60).padStart(2,'0')}</span>
+            <div id="recording-cancel" className="recording-cancel">Recording...</div>
           </div>
         )}
 

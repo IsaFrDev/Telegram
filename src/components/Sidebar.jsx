@@ -37,11 +37,12 @@ export default function Sidebar({ users, currentUser, onSelectUser, onLogout, th
           <Search size={16} />
           <input 
             type="text" 
+            id="search-input"
             placeholder="Search people..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {search && <button className="search-clear" onClick={() => setSearch('')}><X size={14}/></button>}
+          {search && <button id="search-clear" onClick={() => setSearch('')}><X size={14}/></button>}
         </div>
       </div>
 

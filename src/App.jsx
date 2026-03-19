@@ -80,7 +80,12 @@ export default function App() {
       
       <div id="chat-area" className="chat-area">
         {!selectedUser ? (
-          <div id="empty-state" className="empty-state">
+          <div id="empty-state" className="empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+             <div style={{ opacity: 0.3, marginBottom: '20px' }}>
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 11-7.6-11.2 8.38 8.38 0 013.8.9L21 3z" />
+                </svg>
+             </div>
              <h3>Pulse Messenger</h3>
              <p>Select a chat to start messaging.</p>
           </div>
