@@ -68,9 +68,18 @@ export default function App() {
       const filtered = prev.filter(u => u !== other);
       return [other, ...filtered];
     });
-    // Check unreads if not active
-    if (selectedUserRef.current?.username !== other && msg.from !== currentUser.username) {
-       setUnreads(prev => ({ ...prev, [other]: (prev[other] || 0) + 1 }));
+
+    if (selectedUserRef.current?.username === other) {
+      // Clear if open
+      setUnreads(prev => {
+        if (!prev[other]) return prev;
+        const next = { ...prev };
+        delete next[other];
+        return next;
+      });
+    } else if (msg.from !== currentUser.username) {
+      // Increment if hidden
+      setUnreads(prev => ({ ...prev, [other]: (prev[other] || 0) + 1 }));
     }
   };
 
