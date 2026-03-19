@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import Auth from './components/Auth';
 import Sidebar from './components/Sidebar';
@@ -41,6 +41,19 @@ export default function App() {
       .subscribe();
   };
 
+  const selectedUserRef = useRef(null);
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+    if (selectedUser) {
+      setUnreads(prev => {
+        if (!prev[selectedUser.username]) return prev;
+        const next = { ...prev };
+        delete next[selectedUser.username];
+        return next;
+      });
+    }
+  }, [selectedUser]);
+
   const handleNewMessage = (msg) => {
     const other = msg.from === currentUser.username ? msg.to : msg.from;
     setRecentConvs(prev => {
@@ -48,7 +61,7 @@ export default function App() {
       return [other, ...filtered];
     });
     // Check unreads if not active
-    if (selectedUser?.username !== other && msg.from !== currentUser.username) {
+    if (selectedUserRef.current?.username !== other && msg.from !== currentUser.username) {
        setUnreads(prev => ({ ...prev, [other]: (prev[other] || 0) + 1 }));
     }
   };
