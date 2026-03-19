@@ -1,10 +1,13 @@
 /**
  * Pulse Messenger — app.js
- * Real-time (Socket.io) messenger with Media Support
+ * Real-time (Supabase) messenger with Media Support
  * ─────────────────────────────────────────────
  */
 
-const socket = io();
+const SUPABASE_URL = 'https://vkckxborcohmovtogsrn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrY2t4Ym9yY29obW92dG9nc3JuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NjAwOTgsImV4cCI6MjA4OTQzNjA5OH0.EUhVHt76SqDRmzBNy7sRCujewUQ6mHi6EVlRHFz7dbU';
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let unreads = {}; // username -> count
 let recentConvs = []; // list of usernames
 let contextMsg = null; // message currently being right-clicked
@@ -113,16 +116,21 @@ if (tabLogin && tabSignup) {
 
 const btnLogin = document.getElementById('btn-login');
 if (btnLogin) {
-  btnLogin.addEventListener('click', () => {
+  btnLogin.addEventListener('click', async () => {
     const username = document.getElementById('login-username').value.trim().replace(/^@/, '');
     const password = document.getElementById('login-password').value;
     const err = document.getElementById('login-error');
 
     err.classList.add('hidden');
-    const users = getUsers();
-    const user = users.find(u => u.username === username && u.password === password);
+    
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .eq('password', password)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       err.textContent = 'Invalid username or password.';
       err.classList.remove('hidden');
       return;
@@ -133,8 +141,61 @@ if (btnLogin) {
   });
 }
 
+// Signup Multi-step Logic
+let signupData = { username: '', name: '', password: '' };
+
+document.getElementById('btn-step1')?.addEventListener('click', async () => {
+  const username = document.getElementById('signup-username').value.trim().replace(/^@/, '');
+  const err = document.getElementById('signup-error-1');
+  err.classList.add('hidden');
+
+  if (!username) return;
+
+  const { data } = await supabase.from('users').select('username').eq('username', username).single();
+  if (data) {
+    err.textContent = 'Username already taken.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  signupData.username = username;
+  document.getElementById('signup-step-1').style.display = 'none';
+  document.getElementById('signup-step-2').style.display = 'block';
+});
+
+document.getElementById('btn-step2')?.addEventListener('click', () => {
+  const name = document.getElementById('signup-name').value.trim();
+  if (!name) return;
+  signupData.name = name;
+  document.getElementById('signup-step-2').style.display = 'none';
+  document.getElementById('signup-step-3').style.display = 'block';
+});
+
+document.getElementById('btn-step3')?.addEventListener('click', async () => {
+  const password = document.getElementById('signup-password').value;
+  if (!password) return;
+  signupData.password = password;
+
+  const { error } = await supabase.from('users').insert([signupData]);
+  if (error) {
+    const err = document.getElementById('signup-error-3');
+    err.textContent = 'Error creating account. Try again.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  setCurrentUser(signupData);
+  showApp();
+});
+
 function resetSignupForm() {
-  // Reset logic if needed
+  signupData = { username: '', name: '', password: '' };
+  document.getElementById('signup-step-1').style.display = 'block';
+  document.getElementById('signup-step-2').style.display = 'none';
+  document.getElementById('signup-step-3').style.display = 'none';
+  document.getElementById('signup-username').value = '';
+  document.getElementById('signup-name').value = '';
+  document.getElementById('signup-password').value = '';
 }
 
 /* ══════════════════════════════════════════════
@@ -316,7 +377,7 @@ btnSnap?.addEventListener('click', () => {
   btnCloseCapture.click();
 });
 
-function sendMediaMessage(dataUrl, type) {
+async function sendMediaMessage(dataUrl, type) {
   if (!selectedUser) return;
   const current = getCurrentUser();
   const msg = {
@@ -325,15 +386,15 @@ function sendMediaMessage(dataUrl, type) {
     text: '',
     ts: Date.now(),
     type: type,
-    mediaUrl: dataUrl
+    media_url: dataUrl
   };
-  socket.emit('send_message', msg);
-
-  const key = convKey(msg.from, msg.to);
-  const msgs = getMessages(key);
-  msgs.push(msg);
-  saveMessages(key, msgs);
-  renderMessages();
+  
+  const { error } = await supabase.from('messages').insert([msg]);
+  if (error) console.error('Error sending media:', error);
+  
+  // Local rendering is handled by the subscription normally, 
+  // but we can optimistic render or wait for sub.
+  // For simplicity here, let's rely on the subscription to avoid duplicates.
 }
 
 /* ══════════════════════════════════════════════
@@ -361,23 +422,67 @@ let selectedUser = null;
 async function initApp() {
   const current = getCurrentUser();
   if (current) {
-    socket.emit('join', current.username);
-    socket.emit('get_conversations', current.username);
+    // Initial fetch of recent conversations can be done by querying unique 'to' or 'from' 
+    // but for now, we'll just listen for new ones.
+    initRealtime();
   }
-  await fetchUsersFromJson();
+  await fetchUsersFromSupabase();
   renderUserList('');
 }
 
-async function fetchUsersFromJson() {
+function initRealtime() {
+  const current = getCurrentUser();
+  supabase
+    .channel('public:messages')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+      const msg = payload.new;
+      if (msg.to === current.username || msg.from === current.username) {
+        handleIncomingMessage(msg);
+      }
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, payload => {
+      handleDeletedMessage(payload.old.id);
+    })
+    .subscribe();
+}
+
+function handleIncomingMessage(msg) {
+  const current = getCurrentUser();
+  const other = msg.from === current.username ? msg.to : msg.from;
+  const key = convKey(current.username, other);
+  
+  const msgs = getMessages(key);
+  msgs.push(msg);
+  saveMessages(key, msgs);
+
+  if (!recentConvs.includes(other)) {
+    recentConvs.unshift(other);
+  }
+
+  if (selectedUser?.username === other) {
+    renderMessages();
+  } else if (msg.from !== current.username) {
+    unreads[msg.from] = (unreads[msg.from] || 0) + 1;
+  }
+  renderUserList(searchInput.value);
+}
+
+function handleDeletedMessage(id) {
+  // Logic to remove message locally by checking ID
+  // For now, we'll just re-fetch if in active chat
+  if (selectedUser) {
+     fetchHistory(selectedUser);
+  }
+}
+
+async function fetchUsersFromSupabase() {
   try {
-    const res = await fetch('users.json');
-    const users = await res.json();
-    let local = getUsers();
-    users.forEach(u => {
-      if (!local.find(l => l.username === u.username)) local.push(u);
-    });
-    saveUsers(local);
-  } catch (e) { }
+    const { data: users, error } = await supabase.from('users').select('username, name');
+    if (error) throw error;
+    saveUsers(users);
+  } catch (e) {
+    console.error('Error fetching users:', e);
+  }
 }
 
 const searchInput = document.getElementById('search-input');
@@ -421,17 +526,33 @@ function renderUserList(query) {
   });
 }
 
-function openChat(user) {
+async function openChat(user) {
   selectedUser = user;
   delete unreads[user.username];
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('active-chat').classList.remove('hidden');
   document.getElementById('chat-header-avatar').textContent = avatarInitials(user.name);
   document.getElementById('chat-header-name').textContent = user.name;
-  const key = convKey(getCurrentUser().username, user.username);
-  socket.emit('get_messages', key);
+  
+  await fetchHistory(user);
+  
   renderUserList(searchInput.value);
   closeSidebar();
+}
+
+async function fetchHistory(user) {
+  const current = getCurrentUser();
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .or(`and(from.eq.${current.username},to.eq.${user.username}),and(from.eq.${user.username},to.eq.${current.username})`)
+    .order('ts', { ascending: true });
+
+  if (data) {
+    const key = convKey(current.username, user.username);
+    saveMessages(key, data);
+    renderMessages();
+  }
 }
 
 function renderMessages() {
@@ -446,12 +567,12 @@ function renderMessages() {
     let content = escapeHtml(m.text);
 
     if (m.type === 'image') {
-      content = `<img src="${m.mediaUrl}" class="bubble-img" onclick="window.open(this.src)">`;
+      content = `<img src="${m.media_url}" class="bubble-img" onclick="window.open(this.src)">`;
     } else if (m.type === 'video') {
-      content = `<video src="${m.mediaUrl}" class="bubble-video" controls></video>`;
+      content = `<video src="${m.media_url}" class="bubble-video" controls></video>`;
     } else if (m.type === 'voice') {
       content = `<div class="bubble-voice">
-                   <button class="btn-play" onclick="const a = new Audio('${m.mediaUrl}'); a.play(); this.classList.toggle('playing')">▶</button>
+                   <button class="btn-play" onclick="const a = new Audio('${m.media_url}'); a.play(); this.classList.toggle('playing')">▶</button>
                    <div class="voice-info">
                      <div class="voice-label">Voice Message</div>
                      <div class="voice-duration">${time}</div>
@@ -459,7 +580,7 @@ function renderMessages() {
                  </div>`;
     } else if (m.type === 'circular') {
       content = `<div class="circular-container" onclick="const v=this.querySelector('video'); v.muted=!v.muted; this.classList.toggle('unmuted', !v.muted)">
-                   <video src="${m.mediaUrl}" class="circular-video" autoplay loop muted playsinline webkit-playsinline></video>
+                   <video src="${m.media_url}" class="circular-video" autoplay loop muted playsinline webkit-playsinline></video>
                    <div class="circular-hint">Tap to unmute</div>
                    <div class="circular-sound-icon">🔊</div>
                  </div>`;
@@ -495,35 +616,17 @@ function showContextMenu(x, y, msg) {
 }
 function hideContextMenu() { contextMenu.classList.add('hidden'); }
 
-document.getElementById('btn-delete-msg')?.addEventListener('click', () => {
+document.getElementById('btn-delete-msg')?.addEventListener('click', async () => {
   if (contextMsg) {
-    const key = convKey(getCurrentUser().username, selectedUser.username);
-    socket.emit('delete_message', { key, ts: contextMsg.ts, to: selectedUser.username });
+    const { error } = await supabase.from('messages').delete().eq('id', contextMsg.id);
+    if (error) console.error('Error deleting message:', error);
   }
   hideContextMenu();
 });
 
 document.addEventListener('click', hideContextMenu);
 
-socket.on('conversations_list', list => { recentConvs = list; renderUserList(searchInput.value); });
-socket.on('receive_message', msg => {
-  const key = convKey(msg.from, getCurrentUser().username);
-  const msgs = getMessages(key);
-  msgs.push(msg);
-  saveMessages(key, msgs);
-  if (selectedUser?.username === msg.from) renderMessages();
-  else { unreads[msg.from] = (unreads[msg.from] || 0) + 1; renderUserList(searchInput.value); }
-});
-socket.on('history', data => {
-  saveMessages(data.key, data.msgs);
-  if (selectedUser && convKey(getCurrentUser().username, selectedUser.username) === data.key) renderMessages();
-});
-socket.on('message_deleted', data => {
-  let msgs = getMessages(data.key);
-  msgs = msgs.filter(m => m.ts !== data.ts);
-  saveMessages(data.key, msgs);
-  if (selectedUser && convKey(getCurrentUser().username, selectedUser.username) === data.key) renderMessages();
-});
+// socket.io listeners replaced by initRealtime()
 
 const msgInput = document.getElementById('msg-input');
 const btnSend = document.getElementById('btn-send');
@@ -541,17 +644,23 @@ function toggleSendRecord() {
 
 msgInput?.addEventListener('input', toggleSendRecord);
 
-function sendMessage() {
+async function sendMessage() {
   const text = msgInput.value.trim();
   if (!text || !selectedUser) return;
-  const msg = { from: getCurrentUser().username, to: selectedUser.username, text, ts: Date.now(), type: 'text' };
-  socket.emit('send_message', msg);
+  const msg = { 
+    from: getCurrentUser().username, 
+    to: selectedUser.username, 
+    text: text, 
+    ts: Date.now(), 
+    type: 'text',
+    media_url: null 
+  };
+  
   msgInput.value = '';
   toggleSendRecord();
-  const msgs = getMessages(convKey(msg.from, msg.to));
-  msgs.push(msg);
-  saveMessages(convKey(msg.from, msg.to), msgs);
-  renderMessages();
+
+  const { error } = await supabase.from('messages').insert([msg]);
+  if (error) console.error('Error sending message:', error);
 }
 
 btnSend?.addEventListener('click', sendMessage);
