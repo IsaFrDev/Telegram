@@ -20,6 +20,7 @@ export default function ChatArea({ selectedUser, currentUser, onBack }) {
   const recTimerRef = useRef(null);
   const videoPreviewRef = useRef(null);
   const captureVideoRef = useRef(null);
+  const recPressTimerRef = useRef(null);
 
   useEffect(() => {
     fetchHistory();
@@ -249,9 +250,9 @@ export default function ChatArea({ selectedUser, currentUser, onBack }) {
         ) : (
           <button 
            className={`btn-icon ${isRecording ? 'recording' : ''}`}
-           onMouseDown={() => { this.timer = setTimeout(startRecording, 200); }}
-           onMouseUp={() => { clearTimeout(this.timer); if(isRecording) stopRecording(); }}
-           onMouseLeave={() => { clearTimeout(this.timer); if(isRecording) stopRecording(); }}
+           onMouseDown={() => { recPressTimerRef.current = setTimeout(startRecording, 200); }}
+           onMouseUp={() => { clearTimeout(recPressTimerRef.current); if(isRecording) stopRecording(); }}
+           onMouseLeave={() => { clearTimeout(recPressTimerRef.current); if(isRecording) stopRecording(); }}
            onClick={() => !isRecording && setRecordMode(prev => prev === 'voice' ? 'video' : 'voice')}
           >
             {recordMode === 'voice' ? <Mic size={20} /> : <Video size={20} />}
