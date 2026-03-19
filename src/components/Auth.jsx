@@ -39,7 +39,7 @@ export default function Auth({ onLogin }) {
     if (!username) return;
 
     if (step === 1) {
-      const { data } = await supabase.from('users').select('username').eq('username', username).single();
+      const { data } = await supabase.from('users').select('username').eq('username', username).maybeSingle();
       if (data) {
         setError('Username already taken.');
       } else {
