@@ -817,3 +817,10 @@ button {
   50% { transform: scale(1.2); opacity: 0.7; }
   100% { transform: scale(1); }
 }
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+  background: transparent;
+}
