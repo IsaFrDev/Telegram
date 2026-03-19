@@ -24,7 +24,7 @@ export default function Auth({ onLogin }) {
       .select('*')
       .eq('username', username)
       .eq('password', formData.loginPassword)
-      .single();
+      .maybeSingle();
 
     if (err || !data) {
       setError('Invalid username or password.');
