@@ -45,6 +45,28 @@ export default function App() {
     if (data) setUsers(data);
   };
 
+  const fetchRecentConvs = async () => {
+    const { data } = await supabase
+      .from('messages')
+      .select('from, to, ts')
+      .or(`from.eq.${currentUser.username},to.eq.${currentUser.username}`)
+      .order('ts', { ascending: false })
+      .limit(100);
+    
+    if (data) {
+      const others = [];
+      const seen = new Set();
+      data.forEach(m => {
+        const other = m.from === currentUser.username ? m.to : m.from;
+        if (!seen.has(other)) {
+          seen.add(other);
+          others.push(other);
+        }
+      });
+      setRecentConvs(others);
+    }
+  };
+
   const initRealtime = () => {
     supabase
       .channel('public:messages')
