@@ -47,7 +47,9 @@ export default function Sidebar({ users, currentUser, onSelectUser, onLogout, th
       </div>
 
       <div className="user-list">
-        {search === '' && recentConvs.length > 0 && <div className="list-heading">Recent Conversations</div>}
+        {recentConvs.length > 0 && !search && (
+          <div className="list-heading">Sizning suhbatlaringiz</div>
+        )}
         {search !== '' && <div className="list-heading">Search Results</div>}
         {filteredUsers.map(u => (
           <div key={u.username} className="user-item" onClick={() => onSelectUser(u)}>

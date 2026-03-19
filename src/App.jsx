@@ -123,6 +123,7 @@ export default function App() {
               setSelectedUser(null);
               setIsSidebarOpen(true);
             }} 
+            onOpenSidebar={() => setIsSidebarOpen(true)}
           />
         )}
       </div>

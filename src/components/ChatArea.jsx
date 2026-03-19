@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { 
   Paperclip, Camera, Mic, Video, Send, 
-  Trash2, Play, ChevronLeft, Volume2 
+  Trash2, Play, ChevronLeft, Volume2, Menu 
 } from 'lucide-react';
 
-export default function ChatArea({ selectedUser, currentUser, onBack }) {
+export default function ChatArea({ selectedUser, currentUser, onBack, onOpenSidebar }) {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -162,6 +162,7 @@ export default function ChatArea({ selectedUser, currentUser, onBack }) {
   return (
     <div className="active-chat-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="chat-header">
+        <button className="btn-icon" onClick={onOpenSidebar}><Menu size={20}/></button>
         <button className="btn-icon btn-back" onClick={onBack}><ChevronLeft size={20}/></button>
         <div className="avatar">{(selectedUser.name[0] + (selectedUser.name.split(' ')[1]?.[0] || '')).toUpperCase()}</div>
         <div className="chat-header-info">
