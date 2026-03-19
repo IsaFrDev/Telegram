@@ -431,6 +431,7 @@ button {
   color: var(--success);
 }
 
+.btn-back { display: none; }
 /* Messages */
 .messages-area {
   flex: 1;

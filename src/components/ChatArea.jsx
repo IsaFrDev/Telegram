@@ -161,7 +161,7 @@ export default function ChatArea({ selectedUser, currentUser, onBack }) {
   return (
     <div className="active-chat-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="chat-header">
-        <button className="btn-icon" onClick={onBack}><ChevronLeft size={20}/></button>
+        <button className="btn-icon btn-back" onClick={onBack}><ChevronLeft size={20}/></button>
         <div className="avatar">{(selectedUser.name[0] + (selectedUser.name.split(' ')[1]?.[0] || '')).toUpperCase()}</div>
         <div className="chat-header-info">
           <div className="chat-header-name">{selectedUser.name}</div>
