@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, LogOut, Sun, Moon, X } from 'lucide-react';
 
-export default function Sidebar({ users, currentUser, onSelectUser, onLogout, theme, toggleTheme, unreads, recentConvs }) {
+export default function Sidebar({ users, currentUser, onSelectUser, onLogout, theme, toggleTheme, unreads, recentConvs, isOpen, onClose }) {
   const [search, setSearch] = useState('');
   
   const filteredUsers = users.filter(u => {
@@ -17,7 +17,7 @@ export default function Sidebar({ users, currentUser, onSelectUser, onLogout, th
   };
 
   return (
-    <div id="sidebar" className="sidebar open">
+    <div id="sidebar" className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <div className="logo-wrap">
           <div className="logo-icon">P</div> Pulse

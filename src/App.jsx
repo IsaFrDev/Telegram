@@ -12,6 +12,8 @@ export default function App() {
   const [unreads, setUnreads] = useState({});
   const [recentConvs, setRecentConvs] = useState([]);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   useEffect(() => {
     document.body.className = theme === 'dark' ? 'dark-mode' : 'light-mode';
     localStorage.setItem('pulse-theme', theme);
@@ -23,6 +25,19 @@ export default function App() {
       initRealtime();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      setUnreads(prev => {
+        if (!prev[selectedUser.username]) return prev;
+        const next = { ...prev };
+        delete next[selectedUser.username];
+        return next;
+      });
+      // Close sidebar on mobile when a user is selected
+      if (window.innerWidth <= 850) setIsSidebarOpen(false);
+    }
+  }, [selectedUser]);
 
   const fetchUsers = async () => {
     const { data } = await supabase.from('users').select('username, name');
@@ -44,14 +59,6 @@ export default function App() {
   const selectedUserRef = useRef(null);
   useEffect(() => {
     selectedUserRef.current = selectedUser;
-    if (selectedUser) {
-      setUnreads(prev => {
-        if (!prev[selectedUser.username]) return prev;
-        const next = { ...prev };
-        delete next[selectedUser.username];
-        return next;
-      });
-    }
   }, [selectedUser]);
 
   const handleNewMessage = (msg) => {
@@ -89,8 +96,14 @@ export default function App() {
         toggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         unreads={unreads}
         recentConvs={recentConvs}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
       
+      {isSidebarOpen && window.innerWidth <= 850 && (
+        <div className="sidebar-overlay" style={{ display: 'block' }} onClick={() => setIsSidebarOpen(false)}></div>
+      )}
+
       <div id="chat-area" className="chat-area">
         {!selectedUser ? (
           <div id="empty-state" className="empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
@@ -106,7 +119,10 @@ export default function App() {
           <ChatArea 
             selectedUser={selectedUser} 
             currentUser={currentUser} 
-            onBack={() => setSelectedUser(null)} 
+            onBack={() => {
+              setSelectedUser(null);
+              setIsSidebarOpen(true);
+            }} 
           />
         )}
       </div>
