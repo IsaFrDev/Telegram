@@ -6,7 +6,7 @@
 
 const SUPABASE_URL = 'https://vkckxborcohmovtogsrn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrY2t4Ym9yY29obW92dG9nc3JuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NjAwOTgsImV4cCI6MjA4OTQzNjA5OH0.EUhVHt76SqDRmzBNy7sRCujewUQ6mHi6EVlRHFz7dbU';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let unreads = {}; // username -> count
 let recentConvs = []; // list of usernames
@@ -151,7 +151,7 @@ document.getElementById('btn-step1')?.addEventListener('click', async () => {
 
   if (!username) return;
 
-  const { data } = await supabase.from('users').select('username').eq('username', username).single();
+  const { data } = await supabaseClient.from('users').select('username').eq('username', username).single();
   if (data) {
     err.textContent = 'Username already taken.';
     err.classList.remove('hidden');
@@ -176,7 +176,7 @@ document.getElementById('btn-step3')?.addEventListener('click', async () => {
   if (!password) return;
   signupData.password = password;
 
-  const { error } = await supabase.from('users').insert([signupData]);
+  const { error } = await supabaseClient.from('users').insert([signupData]);
   if (error) {
     const err = document.getElementById('signup-error-3');
     err.textContent = 'Error creating account. Try again.';
@@ -389,7 +389,7 @@ async function sendMediaMessage(dataUrl, type) {
     media_url: dataUrl
   };
   
-  const { error } = await supabase.from('messages').insert([msg]);
+  const { error } = await supabaseClient.from('messages').insert([msg]);
   if (error) console.error('Error sending media:', error);
   
   // Local rendering is handled by the subscription normally, 
@@ -432,7 +432,7 @@ async function initApp() {
 
 function initRealtime() {
   const current = getCurrentUser();
-  supabase
+  supabaseClient
     .channel('public:messages')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
       const msg = payload.new;
@@ -477,7 +477,7 @@ function handleDeletedMessage(id) {
 
 async function fetchUsersFromSupabase() {
   try {
-    const { data: users, error } = await supabase.from('users').select('username, name');
+    const { data: users, error } = await supabaseClient.from('users').select('username, name');
     if (error) throw error;
     saveUsers(users);
   } catch (e) {
@@ -542,7 +542,7 @@ async function openChat(user) {
 
 async function fetchHistory(user) {
   const current = getCurrentUser();
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('messages')
     .select('*')
     .or(`and(from.eq.${current.username},to.eq.${user.username}),and(from.eq.${user.username},to.eq.${current.username})`)
@@ -618,7 +618,7 @@ function hideContextMenu() { contextMenu.classList.add('hidden'); }
 
 document.getElementById('btn-delete-msg')?.addEventListener('click', async () => {
   if (contextMsg) {
-    const { error } = await supabase.from('messages').delete().eq('id', contextMsg.id);
+    const { error } = await supabaseClient.from('messages').delete().eq('id', contextMsg.id);
     if (error) console.error('Error deleting message:', error);
   }
   hideContextMenu();
@@ -659,7 +659,7 @@ async function sendMessage() {
   msgInput.value = '';
   toggleSendRecord();
 
-  const { error } = await supabase.from('messages').insert([msg]);
+  const { error } = await supabaseClient.from('messages').insert([msg]);
   if (error) console.error('Error sending message:', error);
 }
 
